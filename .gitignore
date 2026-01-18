@@ -1,0 +1,22 @@
+# Compiled binaries
+benchmark
+enum_benchmark
+enum_benchmark_verify
+enum_storage
+final_demo
+pure_enum_test
+pure_enum_test_O0
+test_cout_int_bin
+test_enum
+test_enum_verify
+test_print
+check_print
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Temporary files
+*.swp
+*.swo
+*~

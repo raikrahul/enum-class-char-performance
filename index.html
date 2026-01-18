@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>enum class : char Performance Proof</title>
+<style>
+body { margin: 0; padding: 0; font-family: "Courier New", monospace; font-size: 13px; }
+.container { display: flex; height: 100vh; }
+.panel { transition: width 0.3s; position: relative; border-right: 2px solid #000; }
+.panel:last-child { border-right: none; }
+.blog { width: 33.33%; }
+.theory { width: 33.33%; }
+.data { width: 33.33%; }
+.panel.expanded { width: 80%; }
+.panel.collapsed { width: 10%; }
+.expand-btn { 
+    position: absolute;
+    top: 10px; 
+    right: 10px; 
+    background: #000; 
+    color: #fff; 
+    border: 1px solid #fff; 
+    padding: 5px 10px; 
+    cursor: pointer; 
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    z-index: 100;
+}
+.expand-btn:hover { background: #333; }
+.panel.collapsed .expand-btn { writing-mode: vertical-rl; text-orientation: mixed; }
+iframe { width: 100%; height: 100%; border: none; display: block; }
+.panel.collapsed iframe { display: none; }
+</style>
+<script>
+function togglePanel(panelClass) {
+    const panels = document.querySelectorAll('.panel');
+    const clickedPanel = document.querySelector('.' + panelClass);
+    
+    if (clickedPanel.classList.contains('expanded')) {
+        // Collapse back to normal
+        panels.forEach(p => {
+            p.classList.remove('expanded', 'collapsed');
+        });
+    } else {
+        // Expand clicked, collapse others
+        panels.forEach(p => {
+            if (p.classList.contains(panelClass)) {
+                p.classList.add('expanded');
+                p.classList.remove('collapsed');
+            } else {
+                p.classList.add('collapsed');
+                p.classList.remove('expanded');
+            }
+        });
+    }
+}
+</script>
+</head>
+<body>
+
+<div class="container">
+
+<div class="panel blog">
+<button class="expand-btn" onclick="togglePanel('blog')">EXPAND</button>
+<iframe src="blog.html"></iframe>
+</div>
+
+<div class="panel theory">
+<button class="expand-btn" onclick="togglePanel('theory')">EXPAND</button>
+<iframe src="theory.html"></iframe>
+</div>
+
+<div class="panel data">
+<button class="expand-btn" onclick="togglePanel('data')">EXPAND</button>
+<iframe src="data.html"></iframe>
+</div>
+
+</div>
+
+</body>
+</html>

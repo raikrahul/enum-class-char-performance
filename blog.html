@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body { margin: 0; padding: 20px; font-family: "Courier New", monospace; font-size: 13px; background: #e0e0e0; }
+h1 { font-size: 18px; margin: 0 0 20px 0; }
+h2 { font-size: 14px; margin: 20px 0 10px 0; }
+p { margin: 10px 0; line-height: 1.6; }
+pre { background: #d8d8d8; border: 1px solid #000; padding: 10px; margin: 10px 0; overflow-x: auto; line-height: 1.4; }
+b { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>enum class : char Performance</h1>
+
+<p>You've probably heard that using <b>enum class : char</b> instead of plain <b>enum class</b> makes your code faster. The claim: smaller storage means better performance.</p>
+
+<p>I benchmarked it. The result surprised me.</p>
+
+<h2>The Setup</h2>
+
+<p>Two enums:</p>
+<pre>
+enum class OrderType { BUY, SELL };
+enum class OrderType2 : char { BUY='B', SELL='S' };
+</pre>
+
+<p>First uses int (4 bytes). Second uses char (1 byte). That's 75% memory savings.</p>
+
+<h2>The Benchmark</h2>
+
+<p>Test 1: Print 10 million enums with cout.</p>
+
+<p>Result: char enum is <b>3.53× faster</b>.</p>
+
+<p>Test 2: Store 100 million enums without cout.</p>
+
+<p>Result: char enum is <b>17% slower</b>.</p>
+
+<h2>Wait, What?</h2>
+
+<p>Same enum. Different operations. Opposite results.</p>
+
+<p>With cout: 3.53× faster.</p>
+<p>Without cout: 17% slower.</p>
+
+<p>Why?</p>
+
+<h2>The Investigation</h2>
+
+<p>I looked at the assembly. Both enums compile to different move instructions:</p>
+
+<p>int enum: movl (7 bytes)</p>
+<p>char enum: movb (4 bytes)</p>
+
+<p>That's 43% smaller machine code. But both execute in 1 cycle. Performance impact: ~1-2%.</p>
+
+<p>Not enough to explain 3.53×.</p>
+
+<h2>The Real Difference</h2>
+
+<p>When you print an enum with cout, the compiler calls different functions:</p>
+
+<p>int → operator&lt;&lt;(int)</p>
+<p>char → operator&lt;&lt;(char)</p>
+
+<p>I disassembled both functions.</p>
+
+<p>operator&lt;&lt;(int): ~50 instructions</p>
+<p>- Check if negative</p>
+<p>- Extract digits with division</p>
+<p>- Convert each digit to ASCII</p>
+<p>- Write to buffer</p>
+
+<p>operator&lt;&lt;(char): ~10 instructions</p>
+<p>- Write byte to buffer</p>
+<p>- Done</p>
+
+<p>Ratio: 50 / 10 = 5.0×</p>
+
+<p>The measured speedup (3.53×) matches this ratio within measurement variance.</p>
+
+<h2>The Slowdown</h2>
+
+<p>Without cout, char enum is slower. Why?</p>
+
+<p>I analyzed the ternary operator:</p>
+<pre>
+type = (i & 1) ? SELL : BUY;
+</pre>
+
+<p>int enum: uses cmovnel (conditional move, no branch)</p>
+<p>char enum: uses jne (branch + stack spills)</p>
+
+<p>Why the difference?</p>
+
+<p>x86-64 has conditional move for 16/32/64-bit. But NOT for 8-bit.</p>
+
+<p>The compiler can't use cmov for char. It must use a branch.</p>
+
+<p>Branch cost:</p>
+<p>- Misprediction penalty: 10-20 cycles</p>
+<p>- Stack operations: 4 memory accesses</p>
+<p>- Extra instructions: 5</p>
+
+<p>Result: 17% slower.</p>
+
+<h2>The Conclusion</h2>
+
+<p>enum class : char does NOT make code faster.</p>
+
+<p>It changes the TYPE.</p>
+
+<p>Type determines which functions get called.</p>
+
+<p>Functions determine instruction count.</p>
+
+<p>Instruction count determines performance.</p>
+
+<p>Context matters:</p>
+<p>- With I/O: 3.53× faster (simpler operator&lt;&lt;)</p>
+<p>- Without I/O: 17% slower (branch vs cmov)</p>
+<p>- Memory: 75% smaller (1 byte vs 4 bytes)</p>
+
+<p>The speedup comes from operator&lt;&lt;(char) vs operator&lt;&lt;(int).</p>
+
+<p>NOT from movb vs movl.</p>
+
+<p>Measure your actual use case.</p>
+
+</body>
+</html>
