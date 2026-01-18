@@ -127,11 +127,60 @@ LESSON 4: ASSEMBLY INSTRUCTION INT
 </pre>
 
 <pre>
+AXIOM: Register
+Register = storage location inside CPU.
+%rbp = base pointer register (64-bit).
+</pre>
+
+<pre>
+AXIOM: Stack
+Stack = memory region for local variables.
+Stack grows downward (higher addresses to lower addresses).
+</pre>
+
+<pre>
+AXIOM: Stack Offset
+-8(%rbp) = memory address 8 bytes below base pointer.
+rbp = 0x7fff1000 (example)
+rbp - 8 = 0x7fff0ff8
+</pre>
+
+<pre>
+AXIOM: Immediate Value
+$1 = literal value 1 (not a memory address).
+</pre>
+
+<pre>
+AXIOM: movl Instruction
+movl = move long (4 bytes).
+movl SOURCE, DESTINATION
+Copies 4 bytes from SOURCE to DESTINATION.
+</pre>
+
+<pre>
 OrderType type = OrderType::SELL;
 </pre>
 
 <pre>
-movl    $1, -8(%rbp)              # store 4-byte value 1 at stack location rbp-8
+OrderType::SELL = 1
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 enum_storage.cpp
+</pre>
+
+<pre>
+movl    $1, -8(%rbp)
+</pre>
+
+<pre>
+$1 = immediate value 1
+-8(%rbp) = stack location 8 bytes below rbp
+movl = copy 4 bytes
+</pre>
+
+<pre>
+Action: Store value 1 (4 bytes) at memory address rbp-8
 </pre>
 
 <hr>
@@ -141,17 +190,60 @@ LESSON 5: ASSEMBLY INSTRUCTION CHAR
 </pre>
 
 <pre>
+AXIOM: movb Instruction
+movb = move byte (1 byte).
+movb SOURCE, DESTINATION
+Copies 1 byte from SOURCE to DESTINATION.
+</pre>
+
+<pre>
 OrderType2 type2 = OrderType2::SELL;
 </pre>
 
 <pre>
-movb    $83, -9(%rbp)             # store 1-byte value 83 at stack location rbp-9
+OrderType2::SELL = 'S' = 83
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 enum_storage.cpp
+</pre>
+
+<pre>
+movb    $83, -9(%rbp)
+</pre>
+
+<pre>
+$83 = immediate value 83
+-9(%rbp) = stack location 9 bytes below rbp
+movb = copy 1 byte
+</pre>
+
+<pre>
+Action: Store value 83 (1 byte) at memory address rbp-9
 </pre>
 
 <hr>
 
 <pre>
 LESSON 6: MACHINE CODE INT
+</pre>
+
+<pre>
+AXIOM: Machine Code
+Machine code = binary instructions CPU executes.
+Displayed in hexadecimal.
+</pre>
+
+<pre>
+AXIOM: Opcode
+Opcode = operation code (first byte(s) of instruction).
+Tells CPU what operation to perform.
+</pre>
+
+<pre>
+AXIOM: Operands
+Operands = data following opcode.
+Specify addresses, registers, immediate values.
 </pre>
 
 <pre>
@@ -163,13 +255,19 @@ objdump -d test_enum
 </pre>
 
 <pre>
+115f = memory address of instruction
+c7 45 f8 01 00 00 00 = machine code bytes
+movl $0x1,-0x8(%rbp) = assembly representation
+</pre>
+
+<pre>
 c7 45 f8 01 00 00 00
 </pre>
 
 <pre>
 byte 0: c7                        # movl opcode
-byte 1: 45                        # addressing mode
-byte 2: f8                        # displacement -8
+byte 1: 45                        # ModR/M byte (addressing mode)
+byte 2: f8                        # displacement -8 (0xf8 = -8 in two's complement)
 byte 3: 01                        # immediate value byte 0
 byte 4: 00                        # immediate value byte 1
 byte 5: 00                        # immediate value byte 2
@@ -177,7 +275,11 @@ byte 6: 00                        # immediate value byte 3
 </pre>
 
 <pre>
-7 bytes
+0x01 00 00 00 = 1 in little-endian (least significant byte first)
+</pre>
+
+<pre>
+7 bytes total
 </pre>
 
 <hr>
@@ -195,18 +297,28 @@ objdump -d test_enum
 </pre>
 
 <pre>
+1166 = memory address of instruction
+c6 45 f7 53 = machine code bytes
+movb $0x53,-0x9(%rbp) = assembly representation
+</pre>
+
+<pre>
 c6 45 f7 53
 </pre>
 
 <pre>
 byte 0: c6                        # movb opcode
-byte 1: 45                        # addressing mode
-byte 2: f7                        # displacement -9
-byte 3: 53                        # immediate value 83
+byte 1: 45                        # ModR/M byte (addressing mode)
+byte 2: f7                        # displacement -9 (0xf7 = -9 in two's complement)
+byte 3: 53                        # immediate value 83 (0x53 = 83)
 </pre>
 
 <pre>
-4 bytes
+4 bytes total
+</pre>
+
+<pre>
+7 bytes (movl) - 4 bytes (movb) = 3 bytes difference
 </pre>
 
 <hr>
@@ -216,15 +328,58 @@ LESSON 8: PRINT INT ENUM
 </pre>
 
 <pre>
+AXIOM: Function Call
+Function call = transfer control to another code location.
+callq = call instruction (64-bit).
+</pre>
+
+<pre>
+AXIOM: x86-64 Calling Convention
+Parameter 1: %rdi register
+Parameter 2: %rsi register
+Parameter 3: %rdx register
+(and so on)
+</pre>
+
+<pre>
+AXIOM: this Pointer
+Member function receives object address as first parameter.
+std::cout is an object.
+operator&lt;&lt; is a member function.
+</pre>
+
+<pre>
+AXIOM: Name Mangling
+C++ encodes function signatures in symbol names.
+_ZNSolsEi = mangled name
+c++filt = tool to demangle names
+</pre>
+
+<pre>
 OrderType type = OrderType::BUY;
 std::cout &lt;&lt; static_cast&lt;int&gt;(type);
 </pre>
 
 <pre>
-movl    $0, -8(%rbp)                          # store enum value 0 (BUY) on stack
+OrderType::BUY = 0
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 test_enum.cpp
+</pre>
+
+<pre>
+movl    $0, -8(%rbp)                          # store enum value 0 on stack
 movl    -8(%rbp), %esi                        # load value into esi (2nd parameter)
 movq    _ZSt4cout@GOTPCREL(%rip), %rdi        # load cout address into rdi (1st parameter)
-callq   _ZNSolsEi@PLT                         # call operator&lt;&lt;(int)
+callq   _ZNSolsEi@PLT                         # call function
+</pre>
+
+<pre>
+Step 1: Store 0 at stack location rbp-8
+Step 2: Load value from rbp-8 into %esi (32-bit portion of %rsi)
+Step 3: Load cout object address into %rdi
+Step 4: Call function at _ZNSolsEi
 </pre>
 
 <pre>
@@ -235,10 +390,28 @@ c++filt _ZNSolsEi
 std::ostream::operator&lt;&lt;(int)
 </pre>
 
+<pre>
+Function signature: ostream&amp; operator&lt;&lt;(ostream* this, int value)
+Parameter 1 (%rdi): this pointer (cout address)
+Parameter 2 (%esi): int value (0)
+</pre>
+
 <hr>
 
 <pre>
 LESSON 9: PRINT CHAR ENUM
+</pre>
+
+<pre>
+AXIOM: Sign Extension
+movsbl = move with sign extension byte to long.
+Copies 1 byte, extends to 4 bytes, preserving sign.
+</pre>
+
+<pre>
+83 = 0x53 = 0b01010011
+Sign bit (leftmost) = 0 (positive)
+Extended to 32 bits: 0x00000053
 </pre>
 
 <pre>
@@ -247,10 +420,25 @@ std::cout &lt;&lt; static_cast&lt;char&gt;(type2);
 </pre>
 
 <pre>
-movb    $83, -9(%rbp)                         # store enum value 83 (SELL) on stack
+OrderType2::SELL = 'S' = 83
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 test_enum.cpp
+</pre>
+
+<pre>
+movb    $83, -9(%rbp)                         # store enum value 83 on stack
 movsbl  -9(%rbp), %esi                        # load byte with sign extension into esi
-movq    _ZSt4cout@GOTPCREL(%rip), %rdi        # load cout address into rdi (1st parameter)
-callq   _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c@PLT  # call operator&lt;&lt;(char)
+movq    _ZSt4cout@GOTPCREL(%rip), %rdi        # load cout address into rdi
+callq   _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c@PLT
+</pre>
+
+<pre>
+Step 1: Store 83 at stack location rbp-9 (1 byte)
+Step 2: Load 1 byte from rbp-9, extend to 4 bytes, store in %esi
+Step 3: Load cout object address into %rdi
+Step 4: Call function
 </pre>
 
 <pre>
@@ -261,6 +449,12 @@ c++filt _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c
 std::basic_ostream&lt;char, std::char_traits&lt;char&gt; &gt;&amp; 
 std::operator&lt;&lt; &lt;std::char_traits&lt;char&gt; &gt;
 (std::basic_ostream&lt;char, std::char_traits&lt;char&gt; &gt;&amp;, char)
+</pre>
+
+<pre>
+Function signature: ostream&amp; operator&lt;&lt;(ostream&amp; os, char c)
+Parameter 1 (%rdi): ostream reference (cout address)
+Parameter 2 (%esi): char value (83, extended to 32-bit)
 </pre>
 
 <hr>
@@ -426,6 +620,16 @@ LESSON 16: TERNARY CONDITION
 </pre>
 
 <pre>
+AXIOM: Bitwise AND
+&amp; = bitwise AND operator
+Compares each bit position
+1 &amp; 1 = 1
+1 &amp; 0 = 0
+0 &amp; 1 = 0
+0 &amp; 0 = 0
+</pre>
+
+<pre>
 i = 5
 </pre>
 
@@ -439,14 +643,25 @@ i &amp; 1 = 5 &amp; 1
 </pre>
 
 <pre>
-0b0101
-0b0001
-------
-0b0001 = 1
+  0b0101
+&amp; 0b0001
+  ------
+  0b0001 = 1
+</pre>
+
+<pre>
+AXIOM: Ternary Operator
+condition ? value_if_true : value_if_false
+If condition != 0, result = value_if_true
+If condition == 0, result = value_if_false
 </pre>
 
 <pre>
 1 != 0
+</pre>
+
+<pre>
+Result: OrderType::SELL
 </pre>
 
 <hr>
@@ -456,7 +671,46 @@ LESSON 17: TERNARY INT ASSEMBLY
 </pre>
 
 <pre>
+AXIOM: CPU Flags
+CPU has flags register with status bits.
+ZF = Zero Flag
+ZF = 1 if result is zero
+ZF = 0 if result is non-zero
+</pre>
+
+<pre>
+AXIOM: cmpl Instruction
+cmpl = compare long (4 bytes)
+cmpl SOURCE, DESTINATION
+Performs: DESTINATION - SOURCE
+Sets flags based on result
+Does not store result
+</pre>
+
+<pre>
+AXIOM: cmovnel Instruction
+cmovnel = conditional move if not equal (long)
+cmovnel SOURCE, DESTINATION
+If ZF = 0: DESTINATION = SOURCE
+If ZF = 1: DESTINATION unchanged
+</pre>
+
+<pre>
+AXIOM: xorl Instruction
+xorl = XOR long (4 bytes)
+xorl %eax, %eax = %eax XOR %eax
+Any value XOR itself = 0
+Fast way to set register to 0
+</pre>
+
+<pre>
 type = (i &amp; 1) ? OrderType::SELL : OrderType::BUY;
+</pre>
+
+<pre>
+i = 5
+OrderType::BUY = 0
+OrderType::SELL = 1
 </pre>
 
 <pre>
@@ -465,14 +719,14 @@ clang++ -std=c++23 -S -O0 pure_enum_test.cpp
 
 <pre>
 movl    -12(%rbp), %edx           # load i from stack into edx
-andl    $1, %edx                  # edx = edx &amp; 1 (check if odd)
-xorl    %eax, %eax                # eax = 0 (prepare BUY value)
-movl    $1, %ecx                  # ecx = 1 (prepare SELL value)
+andl    $1, %edx                  # edx = edx &amp; 1
+xorl    %eax, %eax                # eax = 0
+movl    $1, %ecx                  # ecx = 1
 cmpl    $0, %edx                  # compare edx with 0, set flags
-cmovnel %ecx, %eax                # if not equal (ZF=0), eax = ecx, else eax unchanged
-movl    %eax, -16(%rbp)           # store result to stack temporary
-movl    -16(%rbp), %eax           # load result back into eax
-movl    %eax, sink_int(%rip)      # store to volatile sink_int
+cmovnel %ecx, %eax                # if ZF=0, eax = ecx
+movl    %eax, -16(%rbp)           # store result to stack
+movl    -16(%rbp), %eax           # load result back
+movl    %eax, sink_int(%rip)      # store to volatile variable
 </pre>
 
 <pre>
@@ -480,23 +734,24 @@ Step 1: edx = Memory[rbp-12] = 5
 Step 2: edx = 5 &amp; 1 = 1
 Step 3: eax = eax XOR eax = 0
 Step 4: ecx = 1
-Step 5: 1 - 0 = 1, ZF = 0
-Step 6: ZF = 0, eax = ecx = 1
+Step 5: Compare: 1 - 0 = 1 (non-zero), ZF = 0
+Step 6: ZF = 0 (not equal), eax = ecx = 1
 Step 7: Memory[rbp-16] = 1
 Step 8: eax = Memory[rbp-16] = 1
 Step 9: Memory[sink_int] = 1
 </pre>
 
 <pre>
-Instruction 1: movl
-Instruction 2: andl
-Instruction 3: xorl
-Instruction 4: movl
-Instruction 5: cmpl
-Instruction 6: cmovnel
-Instruction 7: movl
-Instruction 8: movl
-Instruction 9: movl
+Instruction count:
+1. movl
+2. andl
+3. xorl
+4. movl
+5. cmpl
+6. cmovnel
+7. movl
+8. movl
+9. movl
 </pre>
 
 <pre>
@@ -504,11 +759,11 @@ Instruction 9: movl
 </pre>
 
 <pre>
-cmovnel = conditional move if not equal
+cmovnel = conditional move (no jump)
 </pre>
 
 <pre>
-0 branches
+Branch count: 0
 </pre>
 
 <hr>
@@ -518,7 +773,51 @@ LESSON 18: TERNARY CHAR ASSEMBLY
 </pre>
 
 <pre>
+AXIOM: jne Instruction
+jne = jump if not equal
+jne LABEL
+If ZF = 0: PC = address of LABEL
+If ZF = 1: PC = next instruction
+PC = Program Counter (instruction pointer)
+</pre>
+
+<pre>
+AXIOM: Branch
+Branch = instruction that changes PC based on condition.
+Creates two possible execution paths.
+CPU must predict which path to take.
+</pre>
+
+<pre>
+AXIOM: Register Spilling
+Spilling = storing register value to stack.
+Happens when compiler runs out of registers.
+</pre>
+
+<pre>
+AXIOM: x86-64 8-bit Registers
+%al = low 8 bits of %rax
+%dl = low 8 bits of %rdx
+%cl = low 8 bits of %rcx
+Limited number of 8-bit registers available
+</pre>
+
+<pre>
+AXIOM: No cmovneb
+x86-64 has cmovnel (32-bit conditional move)
+x86-64 has cmovneq (64-bit conditional move)
+x86-64 does NOT have cmovneb (8-bit conditional move)
+Compiler must use branch for 8-bit values
+</pre>
+
+<pre>
 type = (i &amp; 1) ? OrderType2::SELL : OrderType2::BUY;
+</pre>
+
+<pre>
+i = 5
+OrderType2::BUY = 'B' = 66
+OrderType2::SELL = 'S' = 83
 </pre>
 
 <pre>
@@ -527,20 +826,20 @@ clang++ -std=c++23 -S -O0 pure_enum_test.cpp
 
 <pre>
 movl    -12(%rbp), %ecx           # load i from stack into ecx
-andl    $1, %ecx                  # ecx = ecx &amp; 1 (check if odd)
-movb    $83, %al                  # al = 83 (SELL value 'S')
-movb    $66, %dl                  # dl = 66 (BUY value 'B')
-movb    %dl, -42(%rbp)            # spill BUY to stack at rbp-42
+andl    $1, %ecx                  # ecx = ecx &amp; 1
+movb    $83, %al                  # al = 83 (SELL)
+movb    $66, %dl                  # dl = 66 (BUY)
+movb    %dl, -42(%rbp)            # spill BUY to stack
 cmpl    $0, %ecx                  # compare ecx with 0, set flags
-movb    %al, -41(%rbp)            # spill SELL to stack at rbp-41
-jne     .LBB4_6                   # if not equal (ZF=0), jump to .LBB4_6
-movb    -42(%rbp), %al            # reload BUY from stack into al
-movb    %al, -41(%rbp)            # store BUY to result location rbp-41
-.LBB4_6:                          # jump target
-movb    -41(%rbp), %al            # load result from stack into al
-movb    %al, -13(%rbp)            # store to local variable at rbp-13
-movb    -13(%rbp), %al            # load local variable back into al
-movb    %al, sink_char(%rip)      # store to volatile sink_char
+movb    %al, -41(%rbp)            # spill SELL to stack
+jne     .LBB4_6                   # if ZF=0, jump to .LBB4_6
+movb    -42(%rbp), %al            # reload BUY from stack
+movb    %al, -41(%rbp)            # store BUY to result location
+.LBB4_6:                          # jump target label
+movb    -41(%rbp), %al            # load result from stack
+movb    %al, -13(%rbp)            # store to local variable
+movb    -13(%rbp), %al            # load local variable back
+movb    %al, sink_char(%rip)      # store to volatile variable
 </pre>
 
 <pre>
@@ -548,54 +847,63 @@ Step 1: ecx = Memory[rbp-12] = 5
 Step 2: ecx = 5 &amp; 1 = 1
 Step 3: al = 83
 Step 4: dl = 66
-Step 5: Memory[rbp-42] = 66
-Step 6: 1 - 0 = 1, ZF = 0
-Step 7: Memory[rbp-41] = 83
-Step 8: ZF = 0, PC = .LBB4_6
-Step 9: al = Memory[rbp-41] = 83
-Step 10: Memory[rbp-13] = 83
-Step 11: al = Memory[rbp-13] = 83
-Step 12: Memory[sink_char] = 83
+Step 5: Memory[rbp-42] = 66 (spill BUY)
+Step 6: Compare: 1 - 0 = 1 (non-zero), ZF = 0
+Step 7: Memory[rbp-41] = 83 (spill SELL)
+Step 8: ZF = 0 (not equal), PC jumps to .LBB4_6
+Step 9: (skipped: instructions between jne and .LBB4_6)
+Step 10: al = Memory[rbp-41] = 83
+Step 11: Memory[rbp-13] = 83
+Step 12: al = Memory[rbp-13] = 83
+Step 13: Memory[sink_char] = 83
 </pre>
 
 <pre>
-Instruction 1: movl
-Instruction 2: andl
-Instruction 3: movb
-Instruction 4: movb
-Instruction 5: movb
-Instruction 6: cmpl
-Instruction 7: movb
-Instruction 8: jne
-Instruction 9: movb
-Instruction 10: movb
-Instruction 11: movb
-Instruction 12: movb
-Instruction 13: movb
-Instruction 14: movb
+Instruction count:
+1. movl
+2. andl
+3. movb
+4. movb
+5. movb
+6. cmpl
+7. movb
+8. jne
+9. movb (skipped in this execution)
+10. movb (skipped in this execution)
+11. movb
+12. movb
+13. movb
+14. movb
 </pre>
 
 <pre>
-14 instructions
+14 instructions total (12 executed in this path)
 </pre>
 
 <pre>
-jne = jump if not equal
+jne = jump (branch instruction)
 </pre>
 
 <pre>
-1 branch
+Branch count: 1
 </pre>
 
 <pre>
-Memory[rbp-42] = 66
-Memory[rbp-41] = 83
-Memory[rbp-13] = 83
-Memory[sink_char] = 83
+Stack operations:
+Memory[rbp-42] = 66 (spill)
+Memory[rbp-41] = 83 (spill)
+Memory[rbp-13] = 83 (local variable)
+Memory[sink_char] = 83 (volatile)
 </pre>
 
 <pre>
-4 stack operations
+4 stack write operations
+</pre>
+
+<pre>
+Comparison:
+int enum: 9 instructions, 0 branches, cmovnel
+char enum: 14 instructions, 1 branch, jne
 </pre>
 
 <hr>
