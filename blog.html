@@ -1,134 +1,668 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<style>
-body { margin: 0; padding: 20px; font-family: "Courier New", monospace; font-size: 13px; background: #e0e0e0; }
-h1 { font-size: 18px; margin: 0 0 20px 0; }
-h2 { font-size: 14px; margin: 20px 0 10px 0; }
-p { margin: 10px 0; line-height: 1.6; }
-pre { background: #d8d8d8; border: 1px solid #000; padding: 10px; margin: 10px 0; overflow-x: auto; line-height: 1.4; }
-b { font-weight: bold; }
-</style>
+    <meta charset="UTF-8">
+    <title>enum class : char Performance Analysis</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            font-family: "Courier New", monospace; 
+            font-size: 13px; 
+            background: #e0e0e0; 
+        }
+        pre { 
+            background: #d8d8d8; 
+            border: 1px solid #000; 
+            padding: 10px; 
+            margin: 10px 0; 
+            overflow-x: auto; 
+            line-height: 1.4; 
+        }
+        hr { 
+            border: 2px solid #000; 
+            margin: 30px 0; 
+        }
+        a { 
+            color: #000; 
+            text-decoration: underline; 
+        }
+        a:hover { 
+            background: #c0c0c0; 
+        }
+    </style>
 </head>
 <body>
 
-<h1>enum class : char Performance</h1>
+<pre>
+INTRODUCTION
+</pre>
 
-<p>You've probably heard that using <b>enum class : char</b> instead of plain <b>enum class</b> makes your code faster. The claim: smaller storage means better performance.</p>
-
-<p>I benchmarked it. The result surprised me.</p>
-
-<h2>The Setup</h2>
-
-<p>Two enums:</p>
 <pre>
 enum class OrderType { BUY, SELL };
 enum class OrderType2 : char { BUY='B', SELL='S' };
 </pre>
 
-<p>First uses int (4 bytes). Second uses char (1 byte). That's 75% memory savings.</p>
-
-<h2>The Benchmark</h2>
-
-<p>Test 1: Print 10 million enums with cout.</p>
-
-<p>Result: char enum is <b>3.53× faster</b>.</p>
-
-<p>Test 2: Store 100 million enums without cout.</p>
-
-<p>Result: char enum is <b>17% slower</b>.</p>
-
-<h2>Wait, What?</h2>
-
-<p>Same enum. Different operations. Opposite results.</p>
-
-<p>With cout: 3.53× faster.</p>
-<p>Without cout: 17% slower.</p>
-
-<p>Why?</p>
-
-<h2>The Investigation</h2>
-
-<p>I looked at the assembly. Both enums compile to different move instructions:</p>
-
-<p>int enum: movl (7 bytes)</p>
-<p>char enum: movb (4 bytes)</p>
-
-<p>That's 43% smaller machine code. But both execute in 1 cycle. Performance impact: ~1-2%.</p>
-
-<p>Not enough to explain 3.53×.</p>
-
-<h2>The Real Difference</h2>
-
-<p>When you print an enum with cout, the compiler calls different functions:</p>
-
-<p>int → operator&lt;&lt;(int)</p>
-<p>char → operator&lt;&lt;(char)</p>
-
-<p>I disassembled both functions.</p>
-
-<p>operator&lt;&lt;(int): ~50 instructions</p>
-<p>- Check if negative</p>
-<p>- Extract digits with division</p>
-<p>- Convert each digit to ASCII</p>
-<p>- Write to buffer</p>
-
-<p>operator&lt;&lt;(char): ~10 instructions</p>
-<p>- Write byte to buffer</p>
-<p>- Done</p>
-
-<p>Ratio: 50 / 10 = 5.0×</p>
-
-<p>The measured speedup (3.53×) matches this ratio within measurement variance.</p>
-
-<h2>The Slowdown</h2>
-
-<p>Without cout, char enum is slower. Why?</p>
-
-<p>I analyzed the ternary operator:</p>
 <pre>
-type = (i & 1) ? SELL : BUY;
+Two enum types.
+First: default underlying type (int).
+Second: explicit underlying type (char).
 </pre>
 
-<p>int enum: uses cmovnel (conditional move, no branch)</p>
-<p>char enum: uses jne (branch + stack spills)</p>
+<pre>
+Measurements:
+- sizeof operator
+- Assembly instructions (movl vs movb)
+- Machine code bytes
+- Function calls (operator&lt;&lt;)
+- Benchmark with cout (10M iterations)
+- Benchmark without cout (100M iterations)
+- Ternary operator assembly (cmovnel vs jne)
+</pre>
 
-<p>Why the difference?</p>
+<pre>
+Compiler: clang++ 18.1.3
+Flags: -std=c++23 -O0
+Target: x86_64-pc-linux-gnu
+</pre>
 
-<p>x86-64 has conditional move for 16/32/64-bit. But NOT for 8-bit.</p>
+<pre>
+All data from actual compilation and execution.
+All assembly from .s files.
+All timings from benchmark runs.
+</pre>
 
-<p>The compiler can't use cmov for char. It must use a branch.</p>
+<hr>
 
-<p>Branch cost:</p>
-<p>- Misprediction penalty: 10-20 cycles</p>
-<p>- Stack operations: 4 memory accesses</p>
-<p>- Extra instructions: 5</p>
+<pre>
+LESSON 1: STORAGE SIZE
+</pre>
 
-<p>Result: 17% slower.</p>
+<pre>
+enum class OrderType { BUY, SELL };
 
-<h2>The Conclusion</h2>
+OrderType type1 = OrderType::SELL;
+</pre>
 
-<p>enum class : char does NOT make code faster.</p>
+<pre>
+sizeof(OrderType): 4
+</pre>
 
-<p>It changes the TYPE.</p>
+<hr>
 
-<p>Type determines which functions get called.</p>
+<pre>
+LESSON 2: CHAR STORAGE SIZE
+</pre>
 
-<p>Functions determine instruction count.</p>
+<pre>
+enum class OrderType2 : char { BUY='B', SELL='S' };
 
-<p>Instruction count determines performance.</p>
+OrderType2 type2 = OrderType2::SELL;
+</pre>
 
-<p>Context matters:</p>
-<p>- With I/O: 3.53× faster (simpler operator&lt;&lt;)</p>
-<p>- Without I/O: 17% slower (branch vs cmov)</p>
-<p>- Memory: 75% smaller (1 byte vs 4 bytes)</p>
+<pre>
+sizeof(OrderType2): 1
+</pre>
 
-<p>The speedup comes from operator&lt;&lt;(char) vs operator&lt;&lt;(int).</p>
+<hr>
 
-<p>NOT from movb vs movl.</p>
+<pre>
+LESSON 3: ASCII VALUES
+</pre>
 
-<p>Measure your actual use case.</p>
+<pre>
+static_cast&lt;int&gt;('B') = 66
+static_cast&lt;int&gt;('S') = 83
+</pre>
+
+<pre>
+66 = 0x42
+83 = 0x53
+</pre>
+
+<hr>
+
+<pre>
+LESSON 4: ASSEMBLY INSTRUCTION INT
+</pre>
+
+<pre>
+OrderType type = OrderType::SELL;
+</pre>
+
+<pre>
+movl    $1, -8(%rbp)              # store 4-byte value 1 at stack location rbp-8
+</pre>
+
+<hr>
+
+<pre>
+LESSON 5: ASSEMBLY INSTRUCTION CHAR
+</pre>
+
+<pre>
+OrderType2 type2 = OrderType2::SELL;
+</pre>
+
+<pre>
+movb    $83, -9(%rbp)             # store 1-byte value 83 at stack location rbp-9
+</pre>
+
+<hr>
+
+<pre>
+LESSON 6: MACHINE CODE INT
+</pre>
+
+<pre>
+objdump -d test_enum
+</pre>
+
+<pre>
+115f:   c7 45 f8 01 00 00 00    movl   $0x1,-0x8(%rbp)
+</pre>
+
+<pre>
+c7 45 f8 01 00 00 00
+</pre>
+
+<pre>
+byte 0: c7                        # movl opcode
+byte 1: 45                        # addressing mode
+byte 2: f8                        # displacement -8
+byte 3: 01                        # immediate value byte 0
+byte 4: 00                        # immediate value byte 1
+byte 5: 00                        # immediate value byte 2
+byte 6: 00                        # immediate value byte 3
+</pre>
+
+<pre>
+7 bytes
+</pre>
+
+<hr>
+
+<pre>
+LESSON 7: MACHINE CODE CHAR
+</pre>
+
+<pre>
+objdump -d test_enum
+</pre>
+
+<pre>
+1166:   c6 45 f7 53             movb   $0x53,-0x9(%rbp)
+</pre>
+
+<pre>
+c6 45 f7 53
+</pre>
+
+<pre>
+byte 0: c6                        # movb opcode
+byte 1: 45                        # addressing mode
+byte 2: f7                        # displacement -9
+byte 3: 53                        # immediate value 83
+</pre>
+
+<pre>
+4 bytes
+</pre>
+
+<hr>
+
+<pre>
+LESSON 8: PRINT INT ENUM
+</pre>
+
+<pre>
+OrderType type = OrderType::BUY;
+std::cout &lt;&lt; static_cast&lt;int&gt;(type);
+</pre>
+
+<pre>
+movl    $0, -8(%rbp)                          # store enum value 0 (BUY) on stack
+movl    -8(%rbp), %esi                        # load value into esi (2nd parameter)
+movq    _ZSt4cout@GOTPCREL(%rip), %rdi        # load cout address into rdi (1st parameter)
+callq   _ZNSolsEi@PLT                         # call operator&lt;&lt;(int)
+</pre>
+
+<pre>
+c++filt _ZNSolsEi
+</pre>
+
+<pre>
+std::ostream::operator&lt;&lt;(int)
+</pre>
+
+<hr>
+
+<pre>
+LESSON 9: PRINT CHAR ENUM
+</pre>
+
+<pre>
+OrderType2 type2 = OrderType2::SELL;
+std::cout &lt;&lt; static_cast&lt;char&gt;(type2);
+</pre>
+
+<pre>
+movb    $83, -9(%rbp)                         # store enum value 83 (SELL) on stack
+movsbl  -9(%rbp), %esi                        # load byte with sign extension into esi
+movq    _ZSt4cout@GOTPCREL(%rip), %rdi        # load cout address into rdi (1st parameter)
+callq   _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c@PLT  # call operator&lt;&lt;(char)
+</pre>
+
+<pre>
+c++filt _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c
+</pre>
+
+<pre>
+std::basic_ostream&lt;char, std::char_traits&lt;char&gt; &gt;&amp; 
+std::operator&lt;&lt; &lt;std::char_traits&lt;char&gt; &gt;
+(std::basic_ostream&lt;char, std::char_traits&lt;char&gt; &gt;&amp;, char)
+</pre>
+
+<hr>
+
+<pre>
+LESSON 10: BENCHMARK INT WITH COUT
+</pre>
+
+<pre>
+for (int i = 0; i &lt; 10000000; ++i) {
+    OrderType type = (i &amp; 1) ? OrderType::SELL : OrderType::BUY;
+    null_stream &lt;&lt; static_cast&lt;int&gt;(type);
+}
+</pre>
+
+<pre>
+./enum_benchmark
+</pre>
+
+<pre>
+Run 1: int enum (cast to int): 342 ms
+Run 2: int enum (cast to int): 328 ms
+Run 3: int enum (cast to int): 335 ms
+</pre>
+
+<pre>
+(342 + 328 + 335) / 3 = 335
+</pre>
+
+<pre>
+335 ms / 10000000 = 0.0000335 ms = 33.5 nanoseconds
+</pre>
+
+<hr>
+
+<pre>
+LESSON 11: BENCHMARK CHAR WITH COUT
+</pre>
+
+<pre>
+for (int i = 0; i &lt; 10000000; ++i) {
+    OrderType2 type = (i &amp; 1) ? OrderType2::SELL : OrderType2::BUY;
+    null_stream &lt;&lt; static_cast&lt;char&gt;(type);
+}
+</pre>
+
+<pre>
+./enum_benchmark
+</pre>
+
+<pre>
+Run 1: char enum (direct cast): 97 ms
+Run 2: char enum (direct cast): 93 ms
+Run 3: char enum (direct cast): 95 ms
+</pre>
+
+<pre>
+(97 + 93 + 95) / 3 = 95
+</pre>
+
+<pre>
+95 ms / 10000000 = 0.0000095 ms = 9.5 nanoseconds
+</pre>
+
+<hr>
+
+<pre>
+LESSON 12: RATIO WITH COUT
+</pre>
+
+<pre>
+335 ms (int)
+95 ms (char)
+</pre>
+
+<pre>
+335 / 95 = 3.53
+</pre>
+
+<hr>
+
+<pre>
+LESSON 13: BENCHMARK INT WITHOUT COUT
+</pre>
+
+<pre>
+for (int i = 0; i &lt; 100000000; ++i) {
+    OrderType type = (i &amp; 1) ? OrderType::SELL : OrderType::BUY;
+    sink_int = static_cast&lt;int&gt;(type);
+}
+</pre>
+
+<pre>
+./pure_enum_test
+</pre>
+
+<pre>
+Run 1: int enum: 255 ms
+Run 2: int enum: 254 ms
+Run 3: int enum: 253 ms
+Run 4: int enum: 252 ms
+</pre>
+
+<pre>
+(255 + 254 + 253 + 252) / 4 = 254
+</pre>
+
+<pre>
+254 ms / 100000000 = 0.00000254 ms = 2.54 nanoseconds
+</pre>
+
+<hr>
+
+<pre>
+LESSON 14: BENCHMARK CHAR WITHOUT COUT
+</pre>
+
+<pre>
+for (int i = 0; i &lt; 100000000; ++i) {
+    OrderType2 type = (i &amp; 1) ? OrderType2::SELL : OrderType2::BUY;
+    sink_char = static_cast&lt;char&gt;(type);
+}
+</pre>
+
+<pre>
+./pure_enum_test
+</pre>
+
+<pre>
+Run 1: char enum: 298 ms
+Run 2: char enum: 298 ms
+Run 3: char enum: 294 ms
+Run 4: char enum: 295 ms
+</pre>
+
+<pre>
+(298 + 298 + 294 + 295) / 4 = 296
+</pre>
+
+<pre>
+296 ms / 100000000 = 0.00000296 ms = 2.96 nanoseconds
+</pre>
+
+<hr>
+
+<pre>
+LESSON 15: RATIO WITHOUT COUT
+</pre>
+
+<pre>
+254 ms (int)
+296 ms (char)
+</pre>
+
+<pre>
+296 / 254 = 1.17
+</pre>
+
+<hr>
+
+<pre>
+LESSON 16: TERNARY CONDITION
+</pre>
+
+<pre>
+i = 5
+</pre>
+
+<pre>
+i &amp; 1 = 5 &amp; 1
+</pre>
+
+<pre>
+5 = 0b0101
+1 = 0b0001
+</pre>
+
+<pre>
+0b0101
+0b0001
+------
+0b0001 = 1
+</pre>
+
+<pre>
+1 != 0
+</pre>
+
+<hr>
+
+<pre>
+LESSON 17: TERNARY INT ASSEMBLY
+</pre>
+
+<pre>
+type = (i &amp; 1) ? OrderType::SELL : OrderType::BUY;
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 pure_enum_test.cpp
+</pre>
+
+<pre>
+movl    -12(%rbp), %edx           # load i from stack into edx
+andl    $1, %edx                  # edx = edx &amp; 1 (check if odd)
+xorl    %eax, %eax                # eax = 0 (prepare BUY value)
+movl    $1, %ecx                  # ecx = 1 (prepare SELL value)
+cmpl    $0, %edx                  # compare edx with 0, set flags
+cmovnel %ecx, %eax                # if not equal (ZF=0), eax = ecx, else eax unchanged
+movl    %eax, -16(%rbp)           # store result to stack temporary
+movl    -16(%rbp), %eax           # load result back into eax
+movl    %eax, sink_int(%rip)      # store to volatile sink_int
+</pre>
+
+<pre>
+Step 1: edx = Memory[rbp-12] = 5
+Step 2: edx = 5 &amp; 1 = 1
+Step 3: eax = eax XOR eax = 0
+Step 4: ecx = 1
+Step 5: 1 - 0 = 1, ZF = 0
+Step 6: ZF = 0, eax = ecx = 1
+Step 7: Memory[rbp-16] = 1
+Step 8: eax = Memory[rbp-16] = 1
+Step 9: Memory[sink_int] = 1
+</pre>
+
+<pre>
+Instruction 1: movl
+Instruction 2: andl
+Instruction 3: xorl
+Instruction 4: movl
+Instruction 5: cmpl
+Instruction 6: cmovnel
+Instruction 7: movl
+Instruction 8: movl
+Instruction 9: movl
+</pre>
+
+<pre>
+9 instructions
+</pre>
+
+<pre>
+cmovnel = conditional move if not equal
+</pre>
+
+<pre>
+0 branches
+</pre>
+
+<hr>
+
+<pre>
+LESSON 18: TERNARY CHAR ASSEMBLY
+</pre>
+
+<pre>
+type = (i &amp; 1) ? OrderType2::SELL : OrderType2::BUY;
+</pre>
+
+<pre>
+clang++ -std=c++23 -S -O0 pure_enum_test.cpp
+</pre>
+
+<pre>
+movl    -12(%rbp), %ecx           # load i from stack into ecx
+andl    $1, %ecx                  # ecx = ecx &amp; 1 (check if odd)
+movb    $83, %al                  # al = 83 (SELL value 'S')
+movb    $66, %dl                  # dl = 66 (BUY value 'B')
+movb    %dl, -42(%rbp)            # spill BUY to stack at rbp-42
+cmpl    $0, %ecx                  # compare ecx with 0, set flags
+movb    %al, -41(%rbp)            # spill SELL to stack at rbp-41
+jne     .LBB4_6                   # if not equal (ZF=0), jump to .LBB4_6
+movb    -42(%rbp), %al            # reload BUY from stack into al
+movb    %al, -41(%rbp)            # store BUY to result location rbp-41
+.LBB4_6:                          # jump target
+movb    -41(%rbp), %al            # load result from stack into al
+movb    %al, -13(%rbp)            # store to local variable at rbp-13
+movb    -13(%rbp), %al            # load local variable back into al
+movb    %al, sink_char(%rip)      # store to volatile sink_char
+</pre>
+
+<pre>
+Step 1: ecx = Memory[rbp-12] = 5
+Step 2: ecx = 5 &amp; 1 = 1
+Step 3: al = 83
+Step 4: dl = 66
+Step 5: Memory[rbp-42] = 66
+Step 6: 1 - 0 = 1, ZF = 0
+Step 7: Memory[rbp-41] = 83
+Step 8: ZF = 0, PC = .LBB4_6
+Step 9: al = Memory[rbp-41] = 83
+Step 10: Memory[rbp-13] = 83
+Step 11: al = Memory[rbp-13] = 83
+Step 12: Memory[sink_char] = 83
+</pre>
+
+<pre>
+Instruction 1: movl
+Instruction 2: andl
+Instruction 3: movb
+Instruction 4: movb
+Instruction 5: movb
+Instruction 6: cmpl
+Instruction 7: movb
+Instruction 8: jne
+Instruction 9: movb
+Instruction 10: movb
+Instruction 11: movb
+Instruction 12: movb
+Instruction 13: movb
+Instruction 14: movb
+</pre>
+
+<pre>
+14 instructions
+</pre>
+
+<pre>
+jne = jump if not equal
+</pre>
+
+<pre>
+1 branch
+</pre>
+
+<pre>
+Memory[rbp-42] = 66
+Memory[rbp-41] = 83
+Memory[rbp-13] = 83
+Memory[sink_char] = 83
+</pre>
+
+<pre>
+4 stack operations
+</pre>
+
+<hr>
+
+<pre>
+SOURCE CODE
+</pre>
+
+<pre>
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/enum_storage.cpp">enum_storage.cpp</a>         sizeof measurements
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/enum_storage.s">enum_storage.s</a>           assembly for sizeof test
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/test_enum.cpp">test_enum.cpp</a>            cout operator&lt;&lt; test
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/test_enum.s">test_enum.s</a>              assembly for cout test
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/enum_benchmark.cpp">enum_benchmark.cpp</a>       10M iterations with cout
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/pure_enum_test.cpp">pure_enum_test.cpp</a>       100M iterations without cout
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/pure_enum_test.s">pure_enum_test.s</a>         assembly for ternary operator
+</pre>
+
+<hr>
+
+<pre>
+WORKSHEETS
+</pre>
+
+<pre>
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/01-axioms-memory.md">01-axioms-memory.md</a>              sizeof measurements and ASCII values
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/02-assembly-instructions.md">02-assembly-instructions.md</a>      movl vs movb analysis
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/03-enum-storage-proof.md">03-enum-storage-proof.md</a>         storage verification
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/05-operator-int-assembly.md">05-operator-int-assembly.md</a>      operator&lt;&lt;(int) disassembly
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/06-operator-char-assembly.md">06-operator-char-assembly.md</a>     operator&lt;&lt;(char) disassembly
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/07-benchmark-methodology.md">07-benchmark-methodology.md</a>      benchmark setup
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/08-benchmark-results-proof.md">08-benchmark-results-proof.md</a>    timing measurements
+<a href="https://github.com/raikrahul/enum-class-char-performance/blob/main/BRANCH_VS_CMOV_AXIOMS.md">BRANCH_VS_CMOV_AXIOMS.md</a>         cmovnel vs jne analysis
+</pre>
+
+<hr>
+
+<pre>
+REPRODUCTION
+</pre>
+
+<pre>
+clang++ -std=c++23 enum_storage.cpp -o enum_storage
+./enum_storage
+
+clang++ -std=c++23 -S -O0 test_enum.cpp -o test_enum.s
+clang++ -std=c++23 -O0 test_enum.cpp -o test_enum
+objdump -d test_enum
+
+clang++ -std=c++23 -O0 enum_benchmark.cpp -o enum_benchmark
+./enum_benchmark
+
+clang++ -std=c++23 -S -O0 pure_enum_test.cpp -o pure_enum_test.s
+clang++ -std=c++23 -O0 pure_enum_test.cpp -o pure_enum_test
+./pure_enum_test
+</pre>
+
+<hr>
+
+<pre>
+COMPILER
+</pre>
+
+<pre>
+Ubuntu clang version 18.1.3 (1ubuntu1)
+Target: x86_64-pc-linux-gnu
+</pre>
 
 </body>
 </html>
